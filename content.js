@@ -1,5 +1,6 @@
 let autoplay = false;
 let timeoutId = undefined;
+let scrollLock = false;
 const failMessage = 'Error: AutoPlayer: ';
 const container = document.getElementById('shorts-container');
 
@@ -81,28 +82,28 @@ function autoPlayLoop()  {
     if (short.paused) {
         short.play();
     }
-
     const timeLeft = short.duration - short.currentTime;
 
     timeoutId = setTimeout(() => {
         // get current video id
         const id = getId(short.src);
         // scroll to next video
+        scrollLock = true;
         next();
         const options = {
             onSuccess: true,
             onFail: "Unable to find DOM update",
             failureCallback: () => {
                 alert(failMessage + " shutting down");
+                scrollLock = false;
                 return stop();
             },
         };
         const checkIdMatch = () => {
-            console.log(id,  getId(getVideo()?.src))
-            return id === getId(getVideo()?.src);
+            return id !== getId(getVideo()?.src);
         }
         // wait for new video to be loaded before we continue
-        waitFor(checkIdMatch, autoPlayLoop, options);
+        waitFor(checkIdMatch, () => { scrollLock = false; autoPlayLoop(); }, options);
     }, timeLeft*1000);
 }
 
@@ -131,6 +132,21 @@ function stop() {
     }
 }
 
+function pause() {
+    if (autoplay) {
+        console.log('Pausing');
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+    }
+}
+
+function resume() {
+    if (autoplay) {
+        autoPlayLoop();
+    }
+}
+
 console.log("Content Script Injected");
 
 chrome.runtime.onMessage.addListener((message) => {
@@ -144,11 +160,17 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 container.addEventListener('scroll', () => {
-    stop();
+    if (!scrollLock) {
+        console.log('scroll')
+        pause();
+    }
 });
 
 container.addEventListener('scrollend', () => {
-    start();
+    if(!scrollLock) {
+        console.log('scrollend')
+        resume();
+    }
 });
 
 container.addEventListener('click', () => {
