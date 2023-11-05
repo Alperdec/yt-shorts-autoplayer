@@ -1,0 +1,11 @@
+{
+    "manifest_version": 3,
+    "name": "yt-shorts-autoplayer",
+    "description": "Watch youtube shorts without having to scroll",
+    "version": "1.0",
+    "action": {
+      "default_popup": "main.html",
+      "default_icon": "playbutton.png"
+    },
+    "permissions": ["storage", "activeTab", "tabs", "scripting"]
+  }
