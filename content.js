@@ -29,20 +29,19 @@ async function retry(fn, maxAttempts = 5, baseDelayMs = 100) {
 }
 
 function waitFor(fn, callback, opts) {
-    // fn must return a boolean value
-    let { onSuccess, onFail, failureCallback, ...rest } = opts;
+    let { onFail, failureCallback, ...rest } = opts;
 
-    onSuccess = onSuccess ? onSuccess : true;
     onFail = onFail ? onFail : "";
     failureCallback = failureCallback ? failureCallback : ()  => {};
 
     const shim = () => new Promise((resolve, reject) => {
-        fn() ? resolve(onSuccess) : reject(onFail);
-    })
+        res = fn();
+        res ? resolve(res) : reject(onFail);
+    });
 
     return retry(shim)
-        .then(() => {
-            callback();
+        .then((res) => {
+            callback(res);
         })
         .catch(err => {
             console.log(err);
@@ -69,42 +68,44 @@ function getVideo() {
 }
 
 function next() {
-    container.scrollBy(0, 1)
+    container.scrollBy(0, 1);
 }
 
 function autoPlayLoop()  {
-    const short = getVideo();
-    if (!short) {
-        alert( failMessage + 'Unable to find a playable video');
-        console.log('stopping');
-        return;
-    }
-    if (short.paused) {
-        short.play();
-    }
-    const timeLeft = short.duration - short.currentTime;
-
-    timeoutId = setTimeout(() => {
-        // get current video id
-        const id = getId(short.src);
-        // scroll to next video
-        scrollLock = true;
-        next();
-        const options = {
-            onSuccess: true,
-            onFail: "Unable to find DOM update",
-            failureCallback: () => {
-                alert(failMessage + " shutting down");
-                scrollLock = false;
-                return stop();
-            },
-        };
-        const checkIdMatch = () => {
-            return id !== getId(getVideo()?.src);
+    const options = {
+        onFail: "Unable to find a playable video",
+        failureCallback: () => {
+            alert(failMessage + " shutting down");
+            return stop();
+        },
+    };
+    waitFor(getVideo, (short) => {
+        if (short.paused) {
+            short.play();
         }
-        // wait for new video to be loaded before we continue
-        waitFor(checkIdMatch, () => { scrollLock = false; autoPlayLoop(); }, options);
-    }, timeLeft*1000);
+        const timeLeft = short.duration - short.currentTime;
+    
+        timeoutId = setTimeout(() => {
+            // get current video id
+            const id = getId(short.src);
+            // scroll to next video
+            scrollLock = true;
+            next();
+            const options = {
+                onFail: "Unable to find DOM update",
+                failureCallback: () => {
+                    alert(failMessage + " shutting down");
+                    scrollLock = false;
+                    return stop();
+                },
+            };
+            const checkIdMatch = () => {
+                return id !== getId(getVideo()?.src);
+            }
+            // wait for new video to be loaded before we continue
+            waitFor(checkIdMatch, () => { scrollLock = false; autoPlayLoop(); }, options);
+        }, timeLeft*1000);
+    }, options);
 }
 
 function start() {
